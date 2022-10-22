@@ -1,0 +1,11 @@
+[vn-neutron]
+name=VN 4.1 - x86_64
+baseurl=http://mirrors.bclinux.org/bigcloud/2018.01/bcvn/x86_64/neutron/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[vn-neutron-update]
+name=VN 4.1 - x86_64
+baseurl=http://mirrors.bclinux.org/bigcloud/2018.01/bcvn/x86_64/neutron-update/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7

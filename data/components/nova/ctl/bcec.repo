@@ -1,0 +1,35 @@
+[bc-vn]
+name=VN 4.1 - x86_64
+baseurl=http://100.73.13.125/repo/bc-vn/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[bcec-ev]
+name=EC Pike - x86_64 - ev
+baseurl=http://100.73.13.125/repo/bcec/base/ev/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[bcec-openstack-pike-base]
+name=EC Pike - x86_64 - base
+baseurl=http://100.73.13.125/repo/bcec/base/openstack-pike-base/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[bcec-513]
+name=bcec-513
+baseurl=http://100.73.13.125/repo/bcec/release/5.1.3/
+enabled=1
+gpgcheck=0
+
+[bcec-520]
+name=bcec-520
+baseurl=http://100.73.13.125/repo/bcec/release/5.2.0/
+enabled=1
+gpgcheck=0
+
+[bcec-521]
+name=bcec-521
+baseurl=http://100.73.13.125/repo/bcec/release/5.2.1/
+enabled=1
+gpgcheck=0
