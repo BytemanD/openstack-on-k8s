@@ -1,0 +1,4 @@
+[local-yum]
+name=Local Yum
+baseurl=http://100.73.56.60/repos/
+gpgcheck=0
