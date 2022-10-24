@@ -5,18 +5,16 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 
-from pkg_resources import require
 import prettytable
 
 from easy2use.globals import cli
-from easy2use.globals import log
-from easy2use.system import OS
-from easy2use import system
-from easy2use.web import application
 
 from k8stack.common.i18n import _
 from k8stack.common import conf
+from k8stack.common import exceptions
+from k8stack.common import registry_api
 from k8stack.common import utils
 
 LOG = logging.getLogger(__name__)
@@ -30,7 +28,7 @@ LOG_ARGS = cli.ArgGroup(
 
 
 class ComponentList(cli.SubCli):
-    NAME = 'list-components'
+    NAME = 'component-list'
     HELP = 'List components'
     ARGUMENTS = [LOG_ARGS]
 
@@ -50,23 +48,39 @@ class ComponentList(cli.SubCli):
 
 
 class ImageList(cli.SubCli):
-    NAME = 'list-images'
+    NAME = 'image-list'
     HELP = 'List images'
-    ARGUMENTS = [LOG_ARGS]
+    ARGUMENTS = [LOG_ARGS] + [
+        cli.Arg('-o', '--only', action='store_true',
+                help='Filter by taget registry'),
+        cli.Arg('-r', '--registry', action='store_true',
+                help='List images from registry'),
+    ]
+
+    def list_from_registry(self):
+        pt = prettytable.PrettyTable(['Image', 'Tags'])
+        for endpoint in CONF.push_registries:
+            client = registry_api.ClientV2(endpoint)
+            for image in client.image_ls() or []:
+                if not image.startswith(f'{CONF.project}/'):
+                    continue
+                tags = client.tags(image)
+                pt.align['Image'] = 'l'
+                pt.align['Tags'] = 'l'
+                pt.add_row([image, '    '.join(tags)])
+        print(pt)
 
     def __call__(self, args):
         conf.load_configs()
-        LOG.debug('data path: %s', CONF.data_path)
-        components_path = os.path.join(CONF.data_path, 'components')
+        if args.registry:
+            self.list_from_registry()
+            return
 
-        os.chdir(components_path)
-        table = prettytable.PrettyTable(['No.', 'Name'])
-        for i, c_path in enumerate(glob.glob(f'**/{CONF.dockerfile}',
-                                             recursive=True)):
-            path_list = c_path.split(os.sep)[:-1]
-            table.add_row([str(i+1), os.sep.join(path_list)])
-        table.align["Name"] = 'l'
-        print(table)
+        output_lines = utils.DockerCmd.image_ls().split('\n')
+        for line in output_lines[1:]:
+            if args.only and not line.startswith(f'{CONF.project}/'):
+                continue
+            print(line)
 
 
 class Build(cli.SubCli):
@@ -74,8 +88,10 @@ class Build(cli.SubCli):
     HELP = 'build container image'
     ARGUMENTS = [LOG_ARGS] + [
         cli.Arg('component', help='Component to build, get by `list` command'),
-        cli.Arg('--no-cache', action='store_true', help='Build with no cache'),
-        cli.Arg('--version', help='Build version')
+        cli.Arg('-n', '--no-cache', action='store_true',
+                help='Build with no cache'),
+        cli.Arg('-p', '--push',action='store_true', help='Push image'),
+        cli.Arg('-v', '--version', help='Build version'),
     ]
 
     def parse_hosts_mapping(self):
@@ -109,14 +125,10 @@ class Build(cli.SubCli):
         version = args.version or CONF.build_version
         build_args.append(f'VERSION={version}')
 
-        LOG.debug('workspace: %s', os.getcwd())
-
-        target = f'{args.component}:{version}'
-        if CONF.taget_registry:
-            target = f'{CONF.taget_registry}/{target}'
-        import tempfile
+        target = f'{CONF.project}/{args.component}:{version}'
         with tempfile.TemporaryDirectory() as build_context:
             self._prepare(args.component, build_context)
+            LOG.info('Building ...')
             utils.DockerCmd.build(
                 path=build_context,
                 dockerfile=os.path.join(build_context, CONF.dockerfile),
@@ -125,16 +137,21 @@ class Build(cli.SubCli):
                 no_cache=args.no_cache,
                 target=target,
             )
-        # for i, c_path in enumerate(glob.glob(f'**/{CONF.dockerfile}',
-        #                                      recursive=True)):
-        #     path_list = c_path.split(os.sep)[:-1]
-        #     print(i+1, os.sep.join(path_list))
+        for registry in CONF.push_registries:
+            new_tag = f'{registry}/{target}'
+            utils.DockerCmd.tag(target, new_tag)
+            if args.push:
+                LOG.info('Pushing %s ...', new_tag)
+                try:
+                    utils.DockerCmd.push(new_tag)
+                except exceptions.DockerPushFailed as e:
+                    LOG.error(e)
 
 
 def main():
     cli_parser = cli.SubCliParser(_('K8Stack Command Line'),
                                   title=_('Subcommands'))
-    cli_parser.register_clis(ComponentList, Build)
+    cli_parser.register_clis(ComponentList, ImageList, Build)
     cli_parser.call()
 
 

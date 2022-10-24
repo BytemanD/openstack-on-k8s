@@ -15,12 +15,14 @@ default_options = [
     cfg.Option('log_file', default=None),
     cfg.Option('data_path', default='data'),
     cfg.MapOption('hosts_mapping', default={}),
-    
+
     cfg.Option('dockerfile', default='Dockerfile'),
     cfg.Option('build_network', default=None),
-    cfg.Option('build_version', default=None),
-    cfg.Option('taget_registry', default='k8stack'),
+    cfg.Option('build_version', default='latest'),
     cfg.ListOption('build_args', default=[]),
+
+    cfg.Option('project', default='k8stack'),
+    cfg.ListOption('push_registries', default=[]),
 ]
 
 

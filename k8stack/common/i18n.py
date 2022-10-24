@@ -13,7 +13,7 @@ def get_translater():
     locale_language = locale.getdefaultlocale()[0]
     LOG.debug('locale language: %s', locale_language)
     try:
-        return gettext.translation('vstackboard', locale_path,
+        return gettext.translation('k8stack', locale_path,
                                    [locale_language, "en_US"]).gettext
     except FileNotFoundError:
         return gettext.gettext

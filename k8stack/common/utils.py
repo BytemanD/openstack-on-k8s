@@ -1,9 +1,12 @@
+from contextlib import suppress
 import logging
 import subprocess
 import sys
 import os
 
 from easy2use.system import OS
+
+from k8stack.common import exceptions
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +50,18 @@ class DockerCmd(object):
     def push(cls, image):
         status = run_popen([cls.cmd, 'push', image])
         if status != 0:
-            raise RuntimeError(f'docker push return {status}')
+            raise exceptions.DockerPushFailed(image=image,
+                                              error=f'return code: {status}')
+
+    @classmethod
+    def image_ls(cls, all=False):
+        cmd = [cls.cmd, 'image', 'ls']
+        if all:
+            cmd.append('--all')
+        status, output = subprocess.getstatusoutput(' '.join(cmd))
+        if status != 0:
+            raise RuntimeError('list image failed')
+        return output
 
 
 def get_hosts_mapping():
