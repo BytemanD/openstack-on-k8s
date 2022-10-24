@@ -52,6 +52,7 @@ class DockerCmd(object):
         if status != 0:
             raise exceptions.DockerPushFailed(image=image,
                                               error=f'return code: {status}')
+            raise RuntimeError(f'docker push return {status}')
 
     @classmethod
     def image_ls(cls, all=False):

@@ -15,6 +15,7 @@ from k8stack.common.i18n import _
 from k8stack.common import conf
 from k8stack.common import exceptions
 from k8stack.common import registry_api
+
 from k8stack.common import utils
 
 LOG = logging.getLogger(__name__)
@@ -88,10 +89,9 @@ class Build(cli.SubCli):
     HELP = 'build container image'
     ARGUMENTS = [LOG_ARGS] + [
         cli.Arg('component', help='Component to build, get by `list` command'),
-        cli.Arg('-n', '--no-cache', action='store_true',
-                help='Build with no cache'),
         cli.Arg('-p', '--push',action='store_true', help='Push image'),
-        cli.Arg('-v', '--version', help='Build version'),
+        cli.Arg('--no-cache', action='store_true', help='Build with no cache'),
+        cli.Arg('--version', help='Build version')
     ]
 
     def parse_hosts_mapping(self):
@@ -137,6 +137,7 @@ class Build(cli.SubCli):
                 no_cache=args.no_cache,
                 target=target,
             )
+
         for registry in CONF.push_registries:
             new_tag = f'{registry}/{target}'
             utils.DockerCmd.tag(target, new_tag)
