@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cinder-backup
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cinder-backup
+  template:
+    metadata:
+      labels:
+        app: cinder-backup
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          role: controller
+      containers:
+        - name: cinder-backup
+          securityContext:
+            privileged: True
+          image: docker-registry:5100/ec/cinder/backup:5.1.2-1.bc.el7
+          volumeMounts:
+            - {name: etc-hosts,      mountPath: /etc/hosts}
+            - {name: etc-cinder,     mountPath: /etc/cinder}
+            - {name: var-log-cinder, mountPath: /var/log/cinder}
+            - {name: etc-ceph ,      mountPath: /etc/ceph}
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts}}
+        - {name: etc-cinder, hostPath: {path: /etc/cinder}}
+        - {name: var-log-cinder, hostPath: {path: /var/log/cinder}}
+        - {name: etc-ceph, hostPath: {path: /etc/ceph}}

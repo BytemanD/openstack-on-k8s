@@ -127,7 +127,8 @@ class Deploy(cli.SubCli):
     NAME = 'replace'
     HELP = 'replace deployed component'
     ARGUMENTS = [LOG_ARGS] + [
-        cli.Arg('component', help='Component to build, get by `list` command'),
+        cli.Arg('component', nargs='+',
+                help='Component to deploy, get by `list` command'),
         cli.Arg('-p', '--push', action='store_true', help='Push image'),
         cli.Arg('-f', '--force', action='store_true',
                 help=''),
@@ -137,21 +138,23 @@ class Deploy(cli.SubCli):
     def __call__(self, args):
         conf.load_configs()
         LOG.debug('data path: %s', CONF.data_path)
-        deploy_file = os.path.join(CONF.data_path, 'deployments',
-                                   args.component, 'deployment.yaml')
-        with open(deploy_file) as f:
-            template = string.Template(f.read())
+        for component in args.component:
+            deploy_file = os.path.join(CONF.data_path, 'deployments',
+                                       component, 'deployment.yaml')
+            with open(deploy_file) as f:
+                template = string.Template(f.read())
 
-        registry = CONF.deploy_registry and f'{CONF.deploy_registry}/' or ''
-        result = template.safe_substitute({
-            'REGISTRY': registry,
-            'PROJECT': CONF.project,
-            'VERSION': args.version or CONF.build_version,
-        })
+            registry = CONF.deploy_registry and f'{CONF.deploy_registry}/' \
+                or ''
+            result = template.safe_substitute({
+                'REGISTRY': registry,
+                'PROJECT': CONF.project,
+                'VERSION': args.version or CONF.build_version,
+            })
 
-        with utils.make_temp_file(result) as f:
-            LOG.info('Replacing ...')
-            utils.KubectlCmd.replace(f, force=args.force)
+            with utils.make_temp_file(result) as f:
+                LOG.info('Replacing %s ...', component)
+                utils.KubectlCmd.replace(f, force=args.force)
 
 
 def main():

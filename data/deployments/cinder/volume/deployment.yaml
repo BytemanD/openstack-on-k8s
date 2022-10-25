@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cinder-volume
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cinder-volume
+  template:
+    metadata:
+      labels:
+        app: cinder-volume
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          role: controller
+      containers:
+        - name: cinder-volume
+          command:
+            - /usr/bin/cinder-volume
+          args:
+            - --config-file
+            - /usr/share/cinder/cinder-dist.conf
+            - --config-file
+            - /etc/cinder/cinder.conf
+            - --log-file
+            - /var/log/cinder/volume.log
+          securityContext:
+            privileged: True
+          image: ${REGISTRY}${PROJECT}/cinder/volume:${VERSION}
+          volumeMounts:
+            - {name: etc-hosts,      mountPath: /etc/hosts}
+            - {name: etc-cinder,     mountPath: /etc/cinder}
+            - {name: var-log-cinder, mountPath: /var/log/cinder}
+            - {name: var-lib-cinder, mountPath: /var/lib/cinder}
+            - {name: etc-ceph ,      mountPath: /etc/ceph}
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts}}
+        - {name: etc-cinder, hostPath: {path: /etc/cinder}}
+        - {name: var-log-cinder, hostPath: {path: /var/log/cinder}}
+        - {name: var-lib-cinder, hostPath: {path: /var/lib/cinder}}
+        - {name: etc-ceph, hostPath: {path: /etc/ceph}}
