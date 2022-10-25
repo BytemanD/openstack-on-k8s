@@ -1,11 +1,9 @@
-from genericpath import isfile
 import glob
 import logging
 import os
 import re
-import shutil
+import string
 import sys
-import tempfile
 
 import prettytable
 
@@ -13,9 +11,7 @@ from easy2use.globals import cli
 
 from k8stack.common.i18n import _
 from k8stack.common import conf
-from k8stack.common import exceptions
 from k8stack.common import registry_api
-
 from k8stack.common import utils
 
 LOG = logging.getLogger(__name__)
@@ -89,9 +85,11 @@ class Build(cli.SubCli):
     HELP = 'build container image'
     ARGUMENTS = [LOG_ARGS] + [
         cli.Arg('component', help='Component to build, get by `list` command'),
-        cli.Arg('-p', '--push',action='store_true', help='Push image'),
-        cli.Arg('--no-cache', action='store_true', help='Build with no cache'),
-        cli.Arg('--version', help='Build version')
+        cli.Arg('-p', '--push', action='store_true', help='Push image'),
+        cli.Arg('-n', '--no-cache', action='store_true',
+                help='Build with no cache'),
+        cli.Arg('-l', '--latest', action='store_true', help='Set latest tag'),
+        cli.Arg('-v', '--version', help='Build version'),
     ]
 
     def parse_hosts_mapping(self):
@@ -102,57 +100,64 @@ class Build(cli.SubCli):
 
         return [_parse_to_arg(k, v) for k, v in CONF.hosts_mapping.items()]
 
-    def _prepare(self, component, dest_path):
-        components_path = os.path.join(CONF.data_path, 'components')
-        resources_path = os.path.join(CONF.data_path, 'resources',
-                                      CONF.dockerfile)
-        component_path = os.path.join(components_path, component)
-        for src_path in glob.glob(os.path.join(component_path, '*')):
-            shutil.copy(src_path, dest_path)
-
-        if not os.path.exists(resources_path):
-            LOG.warning('resources path %s is not exists', resources_path)
-            return
-        for src_path in glob.glob(os.path.join(resources_path, '*')):
-            shutil.copy(src_path, dest_path)
-
     def __call__(self, args):
         conf.load_configs()
         LOG.debug('data path: %s', CONF.data_path)
 
+        version = args.version or CONF.build_version
         build_args = CONF.build_args
         build_args.extend(self.parse_hosts_mapping())
-        version = args.version or CONF.build_version
         build_args.append(f'VERSION={version}')
 
-        target = f'{CONF.project}/{args.component}:{version}'
-        with tempfile.TemporaryDirectory() as build_context:
-            self._prepare(args.component, build_context)
-            LOG.info('Building ...')
-            utils.DockerCmd.build(
-                path=build_context,
-                dockerfile=os.path.join(build_context, CONF.dockerfile),
-                network=CONF.build_network,
-                build_args=build_args,
-                no_cache=args.no_cache,
-                target=target,
-            )
+        local_registry = f'{CONF.project}/{args.component}'
+        target = f'{local_registry}:{version}'
 
-        for registry in CONF.push_registries:
-            new_tag = f'{registry}/{target}'
-            utils.DockerCmd.tag(target, new_tag)
-            if args.push:
-                LOG.info('Pushing %s ...', new_tag)
-                try:
-                    utils.DockerCmd.push(new_tag)
-                except exceptions.DockerPushFailed as e:
-                    LOG.error(e)
+        utils.build_image(args.component, target,
+                          no_cache=args.no_cache, build_args=build_args)
+
+        if args.latest:
+            utils.DockerCmd.tag(target, f'{local_registry}:latest')
+
+        if args.push:
+            utils.push_to_registries(local_registry, version,
+                                     latest=args.latest)
+
+
+class Deploy(cli.SubCli):
+    NAME = 'replace'
+    HELP = 'replace deployed component'
+    ARGUMENTS = [LOG_ARGS] + [
+        cli.Arg('component', help='Component to build, get by `list` command'),
+        cli.Arg('-p', '--push', action='store_true', help='Push image'),
+        cli.Arg('-f', '--force', action='store_true',
+                help=''),
+        cli.Arg('-v', '--version', help='Build version'),
+    ]
+
+    def __call__(self, args):
+        conf.load_configs()
+        LOG.debug('data path: %s', CONF.data_path)
+        deploy_file = os.path.join(CONF.data_path, 'deployments',
+                                   args.component, 'deployment.yaml')
+        with open(deploy_file) as f:
+            template = string.Template(f.read())
+
+        registry = CONF.deploy_registry and f'{CONF.deploy_registry}/' or ''
+        result = template.safe_substitute({
+            'REGISTRY': registry,
+            'PROJECT': CONF.project,
+            'VERSION': args.version or CONF.build_version,
+        })
+
+        with utils.make_temp_file(result) as f:
+            LOG.info('Replacing ...')
+            utils.KubectlCmd.replace(f, force=args.force)
 
 
 def main():
     cli_parser = cli.SubCliParser(_('K8Stack Command Line'),
                                   title=_('Subcommands'))
-    cli_parser.register_clis(ComponentList, ImageList, Build)
+    cli_parser.register_clis(ComponentList, ImageList, Build, Deploy)
     cli_parser.call()
 
 

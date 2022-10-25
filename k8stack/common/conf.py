@@ -1,14 +1,11 @@
 import os
-import socket
 import logging
 
 from easy2use.globals import cfg
-from easy2use.common.customconfig import Item, IntItem, BoolItem
 
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
-DEFAULT_HOST = socket.gethostname()
 
 default_options = [
     cfg.BooleanOption('debug', default=False),
@@ -23,6 +20,7 @@ default_options = [
 
     cfg.Option('project', default='k8stack'),
     cfg.ListOption('push_registries', default=[]),
+    cfg.Option('deploy_registry', default=None),
 ]
 
 

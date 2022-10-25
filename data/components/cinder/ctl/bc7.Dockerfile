@@ -8,9 +8,9 @@ RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localt
 RUN echo ${MIRRORS_BCLINUX_ORG} mirrors.bclinux.org >> /etc/hosts \
     && rpm --rebuilddb \
     && yum -y install python-boto3 python-s3transfer --nogpgcheck \
-    && yum install -y openstack-nova-console-2017.${VERSION}.bc.el7 --nogpgcheck \
+    && yum -y install openstack-cinder-2017.${VERSION}.bc.el7 python-pymemcache \
     && yum clean all
-RUN systemctl enable openstack-nova-consoleauth
+RUN systemctl enable openstack-cinder-api.service openstack-cinder-scheduler.service
 
-ENTRYPOINT [ "/usr/bin/nova-consoleauth" ]
-
+EXPOSE 9292
+ENTRYPOINT [ "/usr/sbin/init" ]

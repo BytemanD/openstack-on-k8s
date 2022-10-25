@@ -1,14 +1,19 @@
-from contextlib import suppress
+import contextlib
+import glob
 import logging
+import shutil
 import subprocess
 import sys
 import os
+import tempfile
 
 from easy2use.system import OS
 
+from k8stack.common import conf
 from k8stack.common import exceptions
 
 LOG = logging.getLogger(__name__)
+CONF = conf.CONF
 
 
 def run_popen(cmd: list):
@@ -38,7 +43,8 @@ class DockerCmd(object):
         cmd.append(path)
         status = run_popen(cmd)
         if status != 0:
-            raise RuntimeError(f'docker build return {status}')
+            raise exceptions.DockerBuildFailed(target=target,
+                                               error=f'return code {status}')
 
     @classmethod
     def tag(cls, image, tag):
@@ -52,7 +58,6 @@ class DockerCmd(object):
         if status != 0:
             raise exceptions.DockerPushFailed(image=image,
                                               error=f'return code: {status}')
-            raise RuntimeError(f'docker push return {status}')
 
     @classmethod
     def image_ls(cls, all=False):
@@ -65,6 +70,20 @@ class DockerCmd(object):
         return output
 
 
+class KubectlCmd(object):
+    cmd = 'kubectl'
+
+    @classmethod
+    def replace(cls, file, force=False):
+        cmd = [cls.cmd, 'replace']
+        if force:
+            cmd.append('--force')
+        cmd.extend(['-f', file])
+        status, output = subprocess.getstatusoutput(' '.join(cmd))
+        if status != 0:
+            raise RuntimeError(f'replace {file} failed, {output}')
+
+
 def get_hosts_mapping():
     """Get hosts mapping
 
@@ -73,7 +92,7 @@ def get_hosts_mapping():
     """
     if OS.is_windows():
         hosts_file = os.path.join('c:\\', 'Windows', 'System32', 'drivers',
-                                 'etc', 'hosts')
+                                  'etc', 'hosts')
     else:
         hosts_file = os.path.join('/', 'etc', 'hosts')
     if not os.path.exists(hosts_file):
@@ -94,3 +113,62 @@ def get_hosts_mapping():
                 continue
             hosts_mapping[ip_host[1]] = ip_host[0]
     return hosts_mapping
+
+
+def prepare(component, dest_path):
+    components_path = os.path.join(CONF.data_path, 'components')
+    resources_path = os.path.join(CONF.data_path, 'resources',
+                                  CONF.dockerfile)
+    component_path = os.path.join(components_path, component)
+    for src_path in glob.glob(os.path.join(component_path, '*')):
+        shutil.copy(src_path, dest_path)
+
+    if not os.path.exists(resources_path):
+        LOG.warning('resources path %s is not exists', resources_path)
+        return
+    for src_path in glob.glob(os.path.join(resources_path, '*')):
+        shutil.copy(src_path, dest_path)
+
+
+def build_image(component, target, no_cache=False, build_args=None):
+    with tempfile.TemporaryDirectory() as build_context:
+        prepare(component, build_context)
+        LOG.info('Building ...')
+        DockerCmd.build(
+            path=build_context,
+            dockerfile=os.path.join(build_context, CONF.dockerfile),
+            network=CONF.build_network,
+            build_args=build_args or [],
+            no_cache=no_cache,
+            target=target,
+        )
+        LOG.info('Build %s success', target)
+        return target
+
+
+def push_to_registries(local_registry, version, latest=False):
+    target = f'{local_registry}:{version}'
+    for registry in CONF.push_registries:
+        push_tags = [f'{registry}/{local_registry}:{version}']
+        if latest:
+            push_tags.append(f'{registry}/{local_registry}:latest')
+
+        for new_tag in push_tags:
+            DockerCmd.tag(target, new_tag)
+            LOG.info('Pushing %s ...', new_tag)
+            try:
+                DockerCmd.push(new_tag)
+            except exceptions.DockerPushFailed as e:
+                LOG.error(e)
+
+
+@contextlib.contextmanager
+def make_temp_file(content):
+    _, dest_file = tempfile.mkstemp()
+
+    try:
+        with open(dest_file, 'w') as f:
+            f.write(content)
+        yield dest_file
+    finally:
+        os.remove(dest_file)

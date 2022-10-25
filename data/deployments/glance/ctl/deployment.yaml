@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glance-ctl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: glance-ctl
+  template:
+    metadata:
+      labels:
+        app: glance-ctl
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          role: controller
+      containers:
+        - name: glance-api
+          image: ${REGISTRY}${PROJECT}/glance/ctl:${VERSION}
+          command: ["su", "-s", "/bin/sh", "-c", "glance-api", "glance"]
+          ports:
+          - containerPort: 8776
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+
+            - {mountPath: /etc/glance, name: etc-glance }
+            - {mountPath: /var/log/glance, name: var-log-glance }
+            - {mountPath: /var/lib/glance, name: var-lib-glance }
+            - {mountPath: /etc/ceph, name: etc-ceph }
+        - name: glance-registry
+          image: ${REGISTRY}${PROJECT}/glance/ctl:${VERSION}
+          command: ["su", "-s", "/bin/sh", "-c", "glance-registry", "glance"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+
+            - {mountPath: /etc/glance, name: etc-glance }
+            - {mountPath: /var/log/glance, name: var-log-glance }
+            - {mountPath: /var/lib/glance, name: var-lib-glance }
+            - {mountPath: /etc/ceph, name: etc-ceph }
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts}}
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}
+        - {name: etc-shadow, hostPath: {path: /etc/shadow}}
+
+        - {name: etc-glance, hostPath: {path: /etc/glance}}
+        - {name: var-lib-glance, hostPath: {path: /var/lib/glance}}
+        - {name: var-log-glance, hostPath: {path: /var/log/glance}}
+        - {name: etc-ceph, hostPath: {path: /etc/ceph}}
