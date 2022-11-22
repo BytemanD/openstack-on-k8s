@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: horizon
+  template:
+    metadata:
+      labels:
+        app: horizon
+    spec:
+      hostNetwork: False
+      nodeSelector:
+          role: controller
+      containers:
+        - name: horizon
+          image: docker-registry:5100/ec/horizon
+          ports:
+          - containerPort: 80
+            hostPort: 8888
+          args: [ "keystone-server" ]
+          volumeMounts:
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            - mountPath: /etc/openstack-dashboard/local_settings
+              name: etc-openstack-dashboard-local-settings
+      volumes:
+        - name: etc-hosts
+          hostPath:
+            path: /etc/hosts
+        - name: etc-openstack-dashboard-local-settings
+          hostPath:
+            path: /etc/openstack-dashboard/local_settings
+        #- name: etc-openstack-dashboard
+        #  hostPath:
+        #    path: /etc/openstack-dashboard

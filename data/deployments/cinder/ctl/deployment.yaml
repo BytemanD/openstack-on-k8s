@@ -14,7 +14,7 @@ spec:
     spec:
       hostNetwork: True
       nodeSelector:
-          role: controller
+          cinderCtl: 'yes'
       initContainers:
         - name: cinder-database-sync
           image: ${REGISTRY}${PROJECT}/cinder/ctl:${VERSION}

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keystone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keystone
+  template:
+    metadata:
+      labels:
+        app: keystone
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          keystone: 'yes'
+      initContainers:
+        - name: keystone-database-sync
+          image: docker-registry:5100/ec/keystone:${VERSION}
+          command: [ "su", "-s", "/bin/sh", "-c", "keystone-manage db_sync", "root" ]
+          volumeMounts:
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            # - mountPath: /etc/keystone/key
+            #   name: etc-keystone
+            - mountPath: /etc/keystone/keystone.conf
+              name: etc-keystone-file
+            - mountPath: /var/log/keystone
+              name: var-log-keystone
+            - {mountPath: /etc/passwd, name: etc-passwd }
+      containers:
+        - name: keystone
+          image: docker-registry:5100/ec/keystone:${VERSION}
+          command: [ "/usr/sbin/httpd" ,"-DFOREGROUND"]
+          ports:
+          - containerPort: 5000
+          - containerPort: 35357
+          volumeMounts:
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            # - mountPath: /etc/keystone
+            #   name: etc-keystone
+            - mountPath: /etc/keystone/keystone.conf
+              name: etc-keystone-file
+            - mountPath: /etc/httpd/conf
+              name: etc-httpd-conf
+            - mountPath: /var/log/keystone
+              name: var-log-keystone
+            - mountPath: /var/log/httpd
+              name: var-log-httpd
+      volumes:
+        - name: etc-hosts
+          hostPath:
+            path: /etc/hosts
+        - name: etc-keystone
+          hostPath:
+            path: /etc/keystone
+        - name: etc-keystone-file
+          hostPath:
+            path: /etc/keystone/keystone.conf
+        - name: etc-httpd-conf
+          hostPath:
+            path: /etc/httpd/conf
+        - name: var-log-keystone
+          hostPath:
+            path: /var/log/keystone
+        - name: var-log-httpd
+          hostPath:
+            path: /var/log/httpd
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}

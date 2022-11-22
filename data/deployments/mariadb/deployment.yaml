@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      hostNetwork: True
+      nodeSelector:
+        mariadb: 'yes'
+      containers:
+        - name: mariadb
+          image: docker-registry:5100/mariadb:saved
+          ports:
+          - containerPort: 3306
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-data
+            - mountPath: /var/log/mariadb
+              name: mysql-log
+      volumes:
+        - name: mysql-data
+          hostPath:
+            path: /opt/data/var/lib/mysql
+        - name: mysql-log
+          hostPath:
+            path: /var/log/mariadb

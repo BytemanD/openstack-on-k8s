@@ -14,7 +14,7 @@ spec:
     spec:
       hostNetwork: True
       nodeSelector:
-          role: controller
+          cinderVolume: 'yes'
       containers:
         - name: cinder-volume
           command:

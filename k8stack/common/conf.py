@@ -9,6 +9,7 @@ CONF = cfg.CONF
 
 default_options = [
     cfg.BooleanOption('debug', default=False),
+    cfg.Option('container_cli', default='docker'),
     cfg.Option('log_file', default=None),
     cfg.Option('data_path', default='data'),
     cfg.MapOption('hosts_mapping', default={}),

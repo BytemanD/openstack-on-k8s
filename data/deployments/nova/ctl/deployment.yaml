@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nova-ctl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nova-ctl
+  template:
+    metadata:
+      labels:
+        app: nova-ctl
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          novaCtl: 'yes'
+      initContainers:
+        - name: chown-to-nova
+          image: ${REGISTRY}${PROJECT}/nova/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["chown", "nova:nova", "-R", "/etc/nova", "/var/lib/nova" , "/var/log/nova"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova, name: etc-nova }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+        - name: nova-database-sync
+          image: ${REGISTRY}${PROJECT}/nova/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["su", "-s", "/bin/sh", "-c", "nova-manage db sync", "nova"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova, name: etc-nova }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+      containers:
+        - name: nova-api
+          image: ${REGISTRY}${PROJECT}/nova/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["su", "-s", "/bin/sh", "-c", "nova-api", "nova"]
+          ports:
+          - containerPort: 8774
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+        - name: nova-conductor
+          image: ${REGISTRY}${PROJECT}/nova/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["su", "-s", "/bin/sh", "-c", "nova-conductor", "nova"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+        - name: nova-scheduler
+          image: ${REGISTRY}${PROJECT}/nova/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["su", "-s", "/bin/sh", "-c", "nova-scheduler", "nova"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts} }
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}
+        - {name: etc-shadow, hostPath: {path: /etc/shadow}}
+
+        - {name: etc-nova, hostPath: {path: /etc/nova}}
+        - {name: etc-nova-conf, hostPath: {path: /etc/nova/nova.conf}}
+        - {name: var-lib-nova, hostPath: {path: /var/lib/nova}}
+        - {name: var-log-nova, hostPath: {path: /var/log/nova}}

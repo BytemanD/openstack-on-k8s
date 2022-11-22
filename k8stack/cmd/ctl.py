@@ -2,7 +2,6 @@ import glob
 import logging
 import os
 import re
-import string
 import sys
 
 import prettytable
@@ -13,9 +12,14 @@ from k8stack.common.i18n import _
 from k8stack.common import conf
 from k8stack.common import registry_api
 from k8stack.common import utils
+from k8stack.common import container
+from k8stack.common.container import impl
+
 
 LOG = logging.getLogger(__name__)
 CONF = conf.CONF
+CONTAINER_CLI = container.CONTAINER_CLI
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 LOG_ARGS = cli.ArgGroup(
@@ -36,8 +40,11 @@ class ComponentList(cli.SubCli):
 
         os.chdir(components_path)
         table = prettytable.PrettyTable(['No.', 'Name'])
-        for i, c_path in enumerate(glob.glob(f'**/{CONF.dockerfile}',
-                                             recursive=True)):
+
+        components = sorted([
+            comp for comp in glob.glob(f'**/{CONF.dockerfile}', recursive=True)
+        ])
+        for i, c_path in enumerate(components):
             path_list = c_path.split(os.sep)[:-1]
             table.add_row([str(i+1), os.sep.join(path_list)])
         table.align["Name"] = 'l'
@@ -48,18 +55,17 @@ class ImageList(cli.SubCli):
     NAME = 'image-list'
     HELP = 'List images'
     ARGUMENTS = [LOG_ARGS] + [
-        cli.Arg('-o', '--only', action='store_true',
-                help='Filter by taget registry'),
+        cli.Arg('name', nargs='?', help='Filter images'),
         cli.Arg('-r', '--registry', action='store_true',
                 help='List images from registry'),
     ]
 
-    def list_from_registry(self):
+    def list_from_registry(self, name=None):
         pt = prettytable.PrettyTable(['Image', 'Tags'])
         for endpoint in CONF.push_registries:
             client = registry_api.ClientV2(endpoint)
             for image in client.image_ls() or []:
-                if not image.startswith(f'{CONF.project}/'):
+                if name and name not in image:
                     continue
                 tags = client.tags(image)
                 pt.align['Image'] = 'l'
@@ -70,12 +76,13 @@ class ImageList(cli.SubCli):
     def __call__(self, args):
         conf.load_configs()
         if args.registry:
-            self.list_from_registry()
+            self.list_from_registry(name=args.name)
             return
-
-        output_lines = utils.DockerCmd.image_ls().split('\n')
+        CLI = impl.get_container_cli()
+        output_lines = CLI.image_ls().split('\n')
+        print(output_lines[0])
         for line in output_lines[1:]:
-            if args.only and not line.startswith(f'{CONF.project}/'):
+            if args.name and args.name not in line:
                 continue
             print(line)
 
@@ -112,14 +119,14 @@ class Build(cli.SubCli):
         local_registry = f'{CONF.project}/{args.component}'
         target = f'{local_registry}:{version}'
 
-        utils.build_image(args.component, target,
-                          no_cache=args.no_cache, build_args=build_args)
+        impl.build_image(args.component, target, no_cache=args.no_cache,
+                         build_args=build_args)
 
         if args.latest:
-            utils.DockerCmd.tag(target, f'{local_registry}:latest')
+            impl.tag(target, f'{local_registry}:latest')
 
         if args.push:
-            utils.push_to_registries(local_registry, version,
+            impl.push_to_registries(local_registry, version,
                                      latest=args.latest)
 
 
@@ -139,18 +146,7 @@ class Deploy(cli.SubCli):
         conf.load_configs()
         LOG.debug('data path: %s', CONF.data_path)
         for component in args.component:
-            deploy_file = os.path.join(CONF.data_path, 'deployments',
-                                       component, 'deployment.yaml')
-            with open(deploy_file) as f:
-                template = string.Template(f.read())
-
-            registry = CONF.deploy_registry and f'{CONF.deploy_registry}/' \
-                or ''
-            result = template.safe_substitute({
-                'REGISTRY': registry,
-                'PROJECT': CONF.project,
-                'VERSION': args.version or CONF.build_version,
-            })
+            result = utils.get_deploy_yaml(component, version=args.version)
 
             with utils.make_temp_file(result) as f:
                 LOG.info('Replacing %s ...', component)

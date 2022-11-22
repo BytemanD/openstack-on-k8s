@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron-ovn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neutron-ovn
+  template:
+    metadata:
+      labels:
+        app: neutron-ovn
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          neutronOvn: 'yes'
+      containers:
+        - name: neutron-ovn
+          image: docker-registry:5100/ec/neutron-ovn
+          command:
+            - /usr/bin/neutron-server
+          args:
+            - --config-file
+            - /usr/share/neutron/neutron-dist.conf
+            - --config-dir
+            - /usr/share/neutron/server
+            - --config-file
+            -  /etc/neutron/neutron.conf 
+            - --config-file
+            -  /etc/neutron/plugin.ini 
+            - --config-dir
+            -  /etc/neutron/conf.d/common 
+            - --config-dir
+            - /etc/neutron/conf.d/neutron-server 
+            - --log-file
+            - /var/log/neutron/server.log
+          ports:
+          - containerPort: 9696
+          volumeMounts:
+            - {name: etc-hosts, mountPath: /etc/hosts, }
+            - {name: etc-neutron, mountPath: /etc/neutron}
+            - {name: var-log-neutron, mountPath: /var/log/neutron}
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts}}
+        - {name: etc-neutron, hostPath: {path: /etc/neutron}}
+        - {name: var-log-neutron, hostPath: {path: /var/log/neutron}}

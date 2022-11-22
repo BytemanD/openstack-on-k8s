@@ -14,7 +14,7 @@ spec:
     spec:
       hostNetwork: True
       nodeSelector:
-          role: controller
+          glanceCtl: 'yes'
       containers:
         - name: glance-api
           image: ${REGISTRY}${PROJECT}/glance/ctl:${VERSION}

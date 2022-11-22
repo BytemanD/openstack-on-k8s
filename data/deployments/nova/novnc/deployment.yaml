@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nova-novnc
+spec:
+  selector:
+    matchLabels:
+      app: nova-novnc
+  template:
+    metadata:
+      labels:
+        app: nova-novnc
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          novaNovnc: 'yes'
+      containers:
+        - name: nova-novnc-proxy
+          image: docker-registry:5100/ec/nova/novnc-proxy:$VERSION
+          imagePullPolicy: Always
+          command: [ "su", "-s", "/bin/sh", "-c", "/usr/bin/nova-novncproxy --web /usr/share/novnc/", "nova" ]
+          ports:
+          - containerPort: 6080
+          volumeMounts:
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            - mountPath: /etc/nova/nova.conf
+              name: etc-nova
+            - mountPath: /var/log/nova
+              name: var-log-nova
+        - name: nova-consoleauth
+          image: docker-registry:5100/ec/nova/consoleauth:$VERSION
+          imagePullPolicy: Always
+          command: [ "su", "-s", "/bin/sh", "-c", "/usr/bin/nova-consoleauth", "nova"]
+          volumeMounts:
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            - mountPath: /etc/nova/nova.conf
+              name: etc-nova
+            - mountPath: /var/log/nova
+              name: var-log-nova
+      volumes:
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}
+        - {name: etc-shadow, hostPath: {path: /etc/shadow}}
+        - name: etc-hosts
+          hostPath:
+            path: /etc/hosts
+        - name: etc-nova
+          hostPath:
+            path: /etc/nova/nova.conf
+        - name: var-log-nova
+          hostPath:
+            path: /var/log/nova

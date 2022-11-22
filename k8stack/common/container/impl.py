@@ -17,7 +17,7 @@ LOG = logging.getLogger(__name__)
 CONF = conf.CONF
 
 
-def run_popen(cmd: list):
+def run_popen(cmd):
     LOG.debug('Run: %s', ' '.join(cmd))
     popen = subprocess.Popen(cmd, stdout=sys.stdout)
     popen.wait()
@@ -129,6 +129,8 @@ def prepare(component, dest_path):
     resources_path = os.path.join(CONF.data_path, 'resources',
                                   CONF.dockerfile)
     component_path = os.path.join(components_path, component)
+    if not os.path.exists(component_path):
+        raise RuntimeError(f'component {component} is not exists')
     for src_path in glob.glob(os.path.join(component_path, '*')):
         shutil.copy(src_path, dest_path)
 
@@ -139,7 +141,30 @@ def prepare(component, dest_path):
         shutil.copy(src_path, dest_path)
 
 
+def build_image(component, target, no_cache=False, build_args=None):
+    CLI = get_container_cli()
+    with tempfile.TemporaryDirectory() as build_context:
+        prepare(component, build_context)
+        LOG.info('Building %s ...', component)
+        CLI.build(
+            path=build_context,
+            dockerfile=os.path.join(build_context, CONF.dockerfile),
+            network=CONF.build_network,
+            build_args=build_args or [],
+            no_cache=no_cache,
+            target=target,
+        )
+        LOG.info('Build %s success, target: %s', component, target)
+        return target
+
+
+def tag(image, new_tag):
+    CLI = get_container_cli()
+    CLI.tag(image, new_tag)
+
+
 def push_to_registries(local_registry, version, latest=False):
+    CLI = get_container_cli()
     target = f'{local_registry}:{version}'
     for registry in CONF.push_registries:
         push_tags = [f'{registry}/{local_registry}:{version}']
@@ -147,10 +172,10 @@ def push_to_registries(local_registry, version, latest=False):
             push_tags.append(f'{registry}/{local_registry}:latest')
 
         for new_tag in push_tags:
-            DockerCmd.tag(target, new_tag)
+            CLI.tag(target, new_tag)
             LOG.info('Pushing %s ...', new_tag)
             try:
-                DockerCmd.push(new_tag)
+                CLI.push(new_tag)
             except exceptions.DockerPushFailed as e:
                 LOG.error(e)
 
@@ -160,13 +185,12 @@ def get_deploy_yaml(component, version=None):
                                component, 'deployment.yaml')
     with open(deploy_file) as f:
         template = string.Template(f.read())
-    params = {
-        'REGISTRY': CONF.deploy_registry and f'{CONF.deploy_registry}/' or '',
+    registry = CONF.deploy_registry and f'{CONF.deploy_registry}/' or ''
+    return template.safe_substitute({
+        'REGISTRY': registry,
         'PROJECT': CONF.project,
         'VERSION': version or CONF.build_version,
-    }
-    LOG.debug('deployment template params: %s', params)
-    return template.safe_substitute(params)
+    })
 
 
 @contextlib.contextmanager
@@ -179,3 +203,14 @@ def make_temp_file(content):
         yield dest_file
     finally:
         os.remove(dest_file)
+
+
+CONTAINER_CLI_MAP = {
+    'docker': DockerCmd,
+    'podman': PodmanCmd,
+    'nerdctl': NerdCtlCmd,
+}
+
+
+def get_container_cli() -> DockerCmd:
+    return CONTAINER_CLI_MAP.get(CONF.container_cli)

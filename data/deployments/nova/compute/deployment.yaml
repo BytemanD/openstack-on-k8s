@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nova-compute
+spec:
+  # replicas: 2
+  selector:
+    matchLabels:
+      app: nova-compute
+  template:
+    metadata:
+      labels:
+        app: nova-compute
+    spec:
+      hostNetwork: True
+      nodeSelector:
+        novaCompute: 'yes'
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: NotIn
+                values:
+                - nova-compute
+      initContainers:
+        - name: init-nova-compute
+          image: ${REGISTRY}${PROJECT}/nova/compute:${VERSION}
+          imagePullPolicy: Always
+          command: ["python", "/k8stack/init-utils.py", "-d"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+            - {mountPath: /etc/libvirt/libvirtd.conf, name: etc-libvirt-libvirtd }
+            - {mountPath: /etc/sysconfig/libvirtd, name: etc-sysconfig-libvirtd }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /data/etc/logrotate.d, name: etc-logrotate }
+      containers:
+        - name: nova-compute
+          securityContext:
+            privileged: True
+          #  runAsUser: 162
+          command: ["nova-compute"]
+          command: ["su", "-s", "/bin/sh", "-c", "nova-compute", "nova"]
+          image: ${REGISTRY}${PROJECT}/nova/compute:${VERSION}
+          imagePullPolicy: Always
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /root/.ssh, name: root-ssh }
+            - {mountPath: /etc/localtime, name: etc-localtime }
+            - {mountPath: /dev/hugepages, name: dev-hugepages }
+            - {mountPath: /sys/fs/cgroup, name: sys-fs-cgroup }
+
+            - {mountPath: /var/run/libvirt, name: var-run-libvirt }
+            - {mountPath: /var/run/openvswitch, name: var-run-openvswitch }
+            - {mountPath: /usr/bin/ovs-vsctl, name: usr-bin-ovs-vsctl}
+
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts} }
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}
+        - {name: etc-shadow, hostPath: {path: /etc/shadow}}
+        - {name: root-ssh, hostPath: {path: /root/.ssh}}
+        - {name: etc-localtime, hostPath: {path: /etc/localtime}}
+        - {name: dev-hugepages, hostPath: {path: /dev/hugepages}}
+        - {name: sys-fs-cgroup, hostPath: {path: /sys/fs/cgroup}}
+
+        - {name: var-run-libvirt, hostPath: {path: /var/run/libvirt}}
+        - {name: var-run-openvswitch, hostPath: {path: /var/run/openvswitch}}
+        - {name: usr-bin-ovs-vsctl, hostPath: {path: /usr/bin/ovs-vsctl}}
+
+        - {name: etc-nova-conf, hostPath: {path: /etc/nova/nova.conf}}
+        - {name: var-lib-nova, hostPath: {path: /var/lib/nova}}
+        - {name: var-log-nova, hostPath: {path: /var/log/nova}}
+
+        - {name: etc-libvirt-libvirtd, hostPath: {path: /etc/libvirt/libvirtd.conf}}
+        - {name: etc-sysconfig-libvirtd, hostPath: {path: /etc/sysconfig/libvirtd}}
+        - {name: etc-logrotate, hostPath: {path: /etc/logrotate.d/}}
+

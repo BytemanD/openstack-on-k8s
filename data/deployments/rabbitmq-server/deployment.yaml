@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memcached
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      hostNetwork: True
+      nodeSelector:
+        memcached: 'yes'
+      nodeSelector:
+        role: controller
+      containers:
+        - name: memcached
+          command:
+            - /usr/bin/memcached
+          args:
+            - -u
+            - memcached
+            - -m
+            - '20480'
+            - -c
+            - '20000'
+          image: docker-registry:5100/ec/memcached
+          ports:
+          - containerPort: 11211

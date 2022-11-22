@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vstackboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vstackboard
+  template:
+    metadata:
+      labels:
+        app: vstackboard
+    spec:
+      hostNetwork: True
+      nodeSelector:
+        vstackboard: 'yes'
+      containers:
+        - name: vstackboard
+          image:  ${REGISTRY}vstackboard
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8989
+          volumeMounts:
+            - mountPath: /etc/vstackboard
+              name: etc-vstackboard
+            - mountPath: /var/log/vstackboard
+              name: log-vstackboard
+          args:
+            - --log-file
+            - /var/log/vstackboard/vstackboard.log
+      volumes:
+        - name: etc-vstackboard
+          hostPath:
+            path: /etc/vstackboard
+        - name: log-vstackboard
+          hostPath:
+            path: /var/log/vstackboard
