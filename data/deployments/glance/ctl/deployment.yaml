@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: glance-ctl
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: glance-ctl
@@ -15,6 +15,18 @@ spec:
       hostNetwork: True
       nodeSelector:
           glanceCtl: 'yes'
+      initContainers:
+        - name: glance-database-sync
+          image: ${REGISTRY}${PROJECT}/glance/ctl:${VERSION}
+          imagePullPolicy: Always
+          command: ["su", "-s", "/bin/sh", "-c", "glance-manage db sync", "glance"]
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /etc/glance, name: etc-glance }
+            - {mountPath: /var/lib/glance, name: var-lib-glance }
+            - {mountPath: /var/log/glance, name: var-log-glance }
       containers:
         - name: glance-api
           image: ${REGISTRY}${PROJECT}/glance/ctl:${VERSION}

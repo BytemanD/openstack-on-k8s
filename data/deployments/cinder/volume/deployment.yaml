@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: cinder-volume
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: cinder-volume

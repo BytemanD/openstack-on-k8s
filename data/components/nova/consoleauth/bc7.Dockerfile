@@ -13,4 +13,3 @@ RUN echo ${MIRRORS_BCLINUX_ORG} mirrors.bclinux.org >> /etc/hosts \
 RUN systemctl enable openstack-nova-consoleauth
 
 ENTRYPOINT [ "/usr/bin/nova-consoleauth" ]
-

@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: keystone
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: keystone
@@ -22,8 +21,6 @@ spec:
           volumeMounts:
             - mountPath: /etc/hosts
               name: etc-hosts
-            # - mountPath: /etc/keystone/key
-            #   name: etc-keystone
             - mountPath: /etc/keystone/keystone.conf
               name: etc-keystone-file
             - mountPath: /var/log/keystone

@@ -136,7 +136,30 @@ class Deploy(cli.SubCli):
     ARGUMENTS = [LOG_ARGS] + [
         cli.Arg('component', nargs='+',
                 help='Component to deploy, get by `list` command'),
-        cli.Arg('-p', '--push', action='store_true', help='Push image'),
+        cli.Arg('-f', '--force', action='store_true',
+                help=''),
+        cli.Arg('-v', '--version', help='Version to run'),
+        cli.Arg('-r', '--replicas', type=int, help='Replicas to run'),
+    ]
+
+    def __call__(self, args):
+        conf.load_configs()
+        LOG.debug('data path: %s', CONF.data_path)
+        for component in args.component:
+            result = utils.get_deploy_yaml(component, version=args.version,
+                                           replicas=args.replicas)
+
+            with utils.make_temp_file(result) as f:
+                LOG.info('Replacing %s ...', component)
+                utils.KubectlCmd.replace(f, force=args.force)
+
+
+class Delete(cli.SubCli):
+    NAME = 'delete'
+    HELP = 'delete deployed component'
+    ARGUMENTS = [LOG_ARGS] + [
+        cli.Arg('component', nargs='+',
+                help='Component to deploy, get by `list` command'),
         cli.Arg('-f', '--force', action='store_true',
                 help=''),
         cli.Arg('-v', '--version', help='Build version'),
@@ -149,14 +172,14 @@ class Deploy(cli.SubCli):
             result = utils.get_deploy_yaml(component, version=args.version)
 
             with utils.make_temp_file(result) as f:
-                LOG.info('Replacing %s ...', component)
-                utils.KubectlCmd.replace(f, force=args.force)
+                LOG.info('Delete %s ...', component)
+                utils.KubectlCmd.delete(f, force=args.force)
 
 
 def main():
     cli_parser = cli.SubCliParser(_('K8Stack Command Line'),
                                   title=_('Subcommands'))
-    cli_parser.register_clis(ComponentList, ImageList, Build, Deploy)
+    cli_parser.register_clis(ComponentList, ImageList, Build, Deploy, Delete)
     cli_parser.call()
 
 

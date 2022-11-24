@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nova-compute
+spec:
+  # replicas: 2
+  selector:
+    matchLabels:
+      app: nova-compute
+  template:
+    metadata:
+      labels:
+        app: nova-compute
+    spec:
+      hostNetwork: True
+      # nodeSelector:
+      #   role: controller
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: NotIn
+                values:
+                - nova-compute
+      containers:
+        - name: nova-compute
+          securityContext:
+            privileged: True
+          #  runAsUser: 162
+          #command: ["nova-compute"]
+          command: ["sh", "/vebm-entrypoint.sh" ]
+          image: docker-registry:5100/ec/nova/compute-evbm:5.1.0-dev1
+          volumeMounts:
+            - {mountPath: /etc/hosts, name: etc-hosts }
+            - {mountPath: /etc/passwd, name: etc-passwd }
+            - {mountPath: /etc/shadow, name: etc-shadow }
+            - {mountPath: /root/.ssh, name: root-ssh }
+            - {mountPath: /home/nova/.ssh, name: home-nova-ssh }
+            - {mountPath: /etc/localtime, name: etc-localtime }
+            - {mountPath: /dev/hugepages, name: dev-hugepages }
+            - {mountPath: /sys/fs/cgroup, name: sys-fs-cgroup }
+
+            - {mountPath: /var/run/libvirt, name: var-run-libvirt }
+            - {mountPath: /var/run/openvswitch, name: var-run-openvswitch }
+
+            - {mountPath: /etc/nova, name: etc-nova }
+            - {mountPath: /var/lib/nova, name: var-lib-nova }
+            - {mountPath: /var/log/nova, name: var-log-nova }
+            - {mountPath: /home/zbw/nova_data/var/lib/nova, name: data-nova }
+
+      volumes:
+        - {name: etc-hosts, hostPath: {path: /etc/hosts} }
+        - {name: etc-passwd, hostPath: {path: /etc/passwd}}
+        - {name: etc-shadow, hostPath: {path: /etc/shadow}}
+        - {name: root-ssh, hostPath: {path: /root/.ssh}}
+        - {name: home-nova-ssh, hostPath: {path: /home/nova/.ssh}}
+        - {name: etc-localtime, hostPath: {path: /etc/localtime}}
+        - {name: dev-hugepages, hostPath: {path: /dev/hugepages}}
+        - {name: sys-fs-cgroup, hostPath: {path: /sys/fs/cgroup}}
+
+        - {name: var-run-libvirt, hostPath: {path: /var/run/libvirt}}
+        - {name: var-run-openvswitch, hostPath: {path: /var/run/openvswitch}}
+
+        - {name: etc-nova, hostPath: {path: /etc/nova}}
+        - {name: var-lib-nova, hostPath: {path: /var/lib/nova}}
+        - {name: var-log-nova, hostPath: {path: /var/log/nova}}
+        - {name: data-nova, hostPath: {path: /home/zbw/nova_data/var/lib/nova}}

@@ -22,6 +22,7 @@ default_options = [
     cfg.Option('project', default='k8stack'),
     cfg.ListOption('push_registries', default=[]),
     cfg.Option('deploy_registry', default=None),
+    cfg.MapOption('replicas', default={}),
 ]
 
 

@@ -92,6 +92,16 @@ class KubectlCmd(object):
         if status != 0:
             raise RuntimeError(f'replace {file} failed, {output}')
 
+    @classmethod
+    def delete(cls, file, force=False):
+        cmd = [cls.cmd, 'delete']
+        if force:
+            cmd.append('--force')
+        cmd.extend(['-f', file])
+        status, output = subprocess.getstatusoutput(' '.join(cmd))
+        if status != 0:
+            raise RuntimeError(f'replace {file} failed, {output}')
+
 
 def get_hosts_mapping():
     """Get hosts mapping
@@ -155,7 +165,7 @@ def push_to_registries(local_registry, version, latest=False):
                 LOG.error(e)
 
 
-def get_deploy_yaml(component, version=None):
+def get_deploy_yaml(component, version=None, replicas=None):
     deploy_file = os.path.join(CONF.data_path, 'deployments',
                                component, 'deployment.yaml')
     with open(deploy_file) as f:
@@ -164,6 +174,7 @@ def get_deploy_yaml(component, version=None):
         'REGISTRY': CONF.deploy_registry and f'{CONF.deploy_registry}/' or '',
         'PROJECT': CONF.project,
         'VERSION': version or CONF.build_version,
+        'REPLICAS': replicas or CONF.replicas.get(component, 1),
     }
     LOG.debug('deployment template params: %s', params)
     return template.safe_substitute(params)

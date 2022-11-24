@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: cinder-backup
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: cinder-backup
@@ -14,12 +14,12 @@ spec:
     spec:
       hostNetwork: True
       nodeSelector:
-          role: controller
+          cinderBackup: 'yes'
       containers:
         - name: cinder-backup
           securityContext:
             privileged: True
-          image: docker-registry:5100/ec/cinder/backup:5.1.2-1.bc.el7
+          image: ${REGISTRY}${PROJECT}/ec/cinder/backup:${VERSION}
           volumeMounts:
             - {name: etc-hosts,      mountPath: /etc/hosts}
             - {name: etc-cinder,     mountPath: /etc/cinder}

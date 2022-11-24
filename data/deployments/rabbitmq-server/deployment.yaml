@@ -1,33 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: memcached
+  name: rabbitmq-server
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
-      app: memcached
+      app: rabbitmq-server
   template:
     metadata:
       labels:
-        app: memcached
+        app: rabbitmq-server
     spec:
       hostNetwork: True
       nodeSelector:
-        memcached: 'yes'
-      nodeSelector:
-        role: controller
+        rabbitmq-server: 'yes'
       containers:
-        - name: memcached
+        - name: rabbitmq-server
           command:
-            - /usr/bin/memcached
+            - /usr/bin/rabbitmq-server
           args:
             - -u
-            - memcached
+            - rabbitmq-server
             - -m
             - '20480'
             - -c
             - '20000'
-          image: docker-registry:5100/ec/memcached
+          image: docker-registry:5100/ec/rabbitmq-server
           ports:
           - containerPort: 11211

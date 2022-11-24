@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: nova-ctl
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: nova-ctl
@@ -35,7 +35,7 @@ spec:
             - {mountPath: /etc/hosts, name: etc-hosts }
             - {mountPath: /etc/passwd, name: etc-passwd }
             - {mountPath: /etc/shadow, name: etc-shadow }
-            - {mountPath: /etc/nova, name: etc-nova }
+            - {mountPath: /etc/nova/nova.conf, name: etc-nova-conf }
             - {mountPath: /var/lib/nova, name: var-lib-nova }
             - {mountPath: /var/log/nova, name: var-log-nova }
       containers:

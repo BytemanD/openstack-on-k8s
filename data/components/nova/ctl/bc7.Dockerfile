@@ -1,23 +1,21 @@
-FROM bclinux7.6
+FROM bclinux7
 
 ARG VERSION
 ARG MIRRORS_BCLINUX_ORG
 
 COPY *.repo /etc/yum.repos.d/
+RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo ${MIRRORS_BCLINUX_ORG} mirrors.bclinux.org >> /etc/hosts \
     && rpm --rebuilddb \
+    && (yum remove -y python-nova || echo 0) \
     && yum -y install python-boto3 python-s3transfer --nogpgcheck \
-    && yum -y install openstack-keystone-2017.${VERSION}.bc.el7 \
-    && yum -y install httpd mod_wsgi python-memcached \
+    && yum install -y openstack-nova-api-2017.${VERSION}.bc.el7 --nogpgcheck \
+    && yum install -y openstack-nova-scheduler-2017.${VERSION}.bc.el7 --nogpgcheck \
+    && yum install -y openstack-nova-conductor-2017.${VERSION}.bc.el7 --nogpgcheck \
+    && yum install -y patch \
     && yum clean all
-RUN cp /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/ \
-    && sed -i 's|^#ServerName .*|ServerName 0.0.0.0|g' /etc/httpd/conf/httpd.conf \
-    && rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN systemctl enable openstack-nova-api openstack-nova-scheduler openstack-nova-conductor
 
-RUN keystone-manage credential_setup --keystone-user keystone --keystone-group keystone \
-    && keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+EXPOSE 8774
 
-RUN systemctl enable httpd
-
-EXPOSE 35357 5000
-ENTRYPOINT [ "/usr/sbin/httpd" ]
+ENTRYPOINT [ "/usr/sbin/init" ]

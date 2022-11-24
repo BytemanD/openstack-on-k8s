@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nova-all-in-one
+spec:
+  replicas: ${REPLICAS}
+  selector:
+    matchLabels:
+      app: nova-all-in-one
+  template:
+    metadata:
+      labels:
+        app: nova-all-in-one
+    spec:
+      hostNetwork: True
+      nodeSelector:
+          role: controller
+      initContainers:
+        - name: nova-database-sync
+          image: docker-registry:5100/ec/nova-dev:5.1.0
+          command: ['nova-manage']
+          args: ['db', "sync"]
+          volumeMounts:
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            - mountPath: /etc/nova
+              name: etc-nova
+            - mountPath: /var/log/nova
+              name: var-log-nova
+      containers:
+        - name: nova-api
+          image: docker-registry:5100/ec/nova-dev:5.1.0
+          ports:
+          - containerPort: 8774
+          volumeMounts:
+            - mountPath: /etc/hosts
+              name: etc-hosts
+            - mountPath: /etc/nova
+              name: etc-nova
+            - mountPath: /var/log/nova
+              name: var-log-nova
+      volumes:
+        - name: etc-hosts
+          hostPath:
+            path: /etc/hosts
+        - name: etc-nova
+          hostPath:
+            path: /etc/nova
+        - name: var-log-nova
+          hostPath:
+            path: /var/log/nova

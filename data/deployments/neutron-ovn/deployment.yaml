@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: neutron-ovn
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: neutron-ovn
