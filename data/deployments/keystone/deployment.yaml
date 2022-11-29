@@ -16,7 +16,7 @@ spec:
           keystone: 'yes'
       initContainers:
         - name: keystone-database-sync
-          image: docker-registry:5100/ec/keystone:${VERSION}
+          image: ${REGISTRY}${PROJECT}/keystone:${VERSION}
           command: [ "su", "-s", "/bin/sh", "-c", "keystone-manage db_sync", "root" ]
           volumeMounts:
             - mountPath: /etc/hosts

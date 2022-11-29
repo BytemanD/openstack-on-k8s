@@ -14,6 +14,8 @@ FORMAT = '%(asctime)s %(process)d %(levelname)s %(name)s:%(lineno)s ' \
 
 LOG = logging.getLogger()
 
+WORKSPACE = os.path.dirname(os.path.abspath(__file__))
+
 
 def execute(cmd):
     LOG.debug('>> %s', ' '.join(cmd))
@@ -97,7 +99,7 @@ class InitNovaCompute(InitRunner):
             os.makedirs(directory)
 
     def update_libvirtd_conf(self):
-        LOG.info('update libvirtd.conf')
+        LOG.info('modify libvirtd.conf')
         file_path = '/etc/libvirt/libvirtd.conf'
         old_lines = []
         with open(file_path) as f:
@@ -123,7 +125,7 @@ class InitNovaCompute(InitRunner):
             f.writelines(old_lines + new_lines)
 
     def update_sysconfig_libvirtd(self):
-        LOG.info('update sysconfig libvird')
+        LOG.info('modify sysconfig libvird')
         file_path = '/etc/sysconfig/libvirtd'
         old_lines = []
         with open(file_path) as f:
@@ -142,23 +144,33 @@ class InitNovaCompute(InitRunner):
         with open(bashrc_file, 'w') as f:
             f.write(NOVA_BASHRC)
 
-    def creat_authorized_keys(self):
-        LOG.info('create authorized keys')
+    def create_authorized_keys(self):
+        LOG.info('copy authorized keys')
         ssh_dir = os.path.join(self.HOME_DIR, '.ssh')
-        shutil.copy('/k8stack/id_rsa', os.path.join(ssh_dir, 'id_rsa'))
-        shutil.copy('/k8stack/id_rsa.pub', os.path.join(ssh_dir, 'id_rsa.pub'))
-        with open('/k8stack/id_rsa.pub', 'r') as f:
+        shutil.copy(os.path.join(WORKSPACE, 'id_rsa'),
+                    os.path.join(ssh_dir, 'id_rsa'))
+        shutil.copy(os.path.join(WORKSPACE, 'id_rsa.pub'),
+                    os.path.join(ssh_dir, 'id_rsa.pub'))
+        shutil.copy(os.path.join(WORKSPACE, 'ssh_config'),
+                    os.path.join(ssh_dir, 'config'))
+
+        LOG.info('chmod id_rsa')
+        execute(['chmod', '600', os.path.join(ssh_dir, 'id_rsa')])
+
+        LOG.info('create authorized_keys')
+        with open(os.path.join(WORKSPACE, 'id_rsa.pub'), 'r') as f:
             id_rsa_pub = f.read()
         with open(os.path.join(ssh_dir, 'authorized_keys'), 'w') as f:
             f.write(id_rsa_pub)
 
     def create_logrotate(self):
-        LOG.info('create logrotate config')
+        LOG.info('copy logrotate config')
         conf_file = '/etc/logrotate.d/openstack-nova'
-        shutil.copyfile(conf_file, '/data{}'.format(conf_file))
+        shutil.copy(os.path.join(WORKSPACE, 'openstack-nova.logrotate'),
+                    conf_file)
 
     def chown_directory(self):
-        LOG.info('chown directory')
+        LOG.info('chown nova workspace')
         cmd = ['chown', '-R', '{}:{}'.format(self.USER, self.GROUP),
                self.HOME_DIR, '/etc/nova', '/var/log/nova']
         execute(cmd)
@@ -172,7 +184,7 @@ class InitNovaCompute(InitRunner):
 
         self.create_bashrc()
         self.makedir(*self.DIR_LIST)
-        self.creat_authorized_keys()
+        self.create_authorized_keys()
         self.update_libvirtd_conf()
         self.update_sysconfig_libvirtd()
         self.create_logrotate()
@@ -189,6 +201,7 @@ def main():
                         format=FORMAT)
     runner = InitNovaCompute()
     runner.run()
+
 
 if __name__ == '__main__':
     main()

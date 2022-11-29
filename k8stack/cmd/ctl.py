@@ -130,7 +130,7 @@ class Build(cli.SubCli):
                                      latest=args.latest)
 
 
-class Deploy(cli.SubCli):
+class Replace(cli.SubCli):
     NAME = 'replace'
     HELP = 'replace deployed component'
     ARGUMENTS = [LOG_ARGS] + [
@@ -160,26 +160,44 @@ class Delete(cli.SubCli):
     ARGUMENTS = [LOG_ARGS] + [
         cli.Arg('component', nargs='+',
                 help='Component to deploy, get by `list` command'),
-        cli.Arg('-f', '--force', action='store_true',
-                help=''),
-        cli.Arg('-v', '--version', help='Build version'),
+        cli.Arg('-f', '--force', action='store_true'),
     ]
 
     def __call__(self, args):
         conf.load_configs()
         LOG.debug('data path: %s', CONF.data_path)
         for component in args.component:
-            result = utils.get_deploy_yaml(component, version=args.version)
+            result = utils.get_deploy_yaml(component)
 
             with utils.make_temp_file(result) as f:
                 LOG.info('Delete %s ...', component)
                 utils.KubectlCmd.delete(f, force=args.force)
 
 
+class CreateOrUpdateCM(cli.SubCli):
+    NAME = 'create-or-update-cm'
+    HELP = 'Create or update configmap'
+    ARGUMENTS = [LOG_ARGS]
+
+    def __call__(self, args):
+        conf.load_configs()
+        LOG.debug('data path: %s', CONF.data_path)
+
+        scripts_dir = os.path.join(CONF.data_path, 'scripts')
+        result = utils.KubectlCmd.create_configmap(
+            'k8stack-scripts', from_file=glob.glob(f'{scripts_dir}/*'),
+            dry_run=True, output='yaml')
+
+        with utils.make_temp_file(result) as f:
+            LOG.info('Replace configmap %s', 'k8stack-scripts')
+            utils.KubectlCmd.replace(f, force=True)
+
+
 def main():
     cli_parser = cli.SubCliParser(_('K8Stack Command Line'),
                                   title=_('Subcommands'))
-    cli_parser.register_clis(ComponentList, ImageList, Build, Deploy, Delete)
+    cli_parser.register_clis(ComponentList, ImageList, Build, Replace, Delete,
+                             CreateOrUpdateCM)
     cli_parser.call()
 
 

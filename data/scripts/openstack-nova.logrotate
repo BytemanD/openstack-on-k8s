@@ -1,0 +1,9 @@
+/var/log/nova/*.log {
+    daily
+    rotate 30
+    size 10M
+    missingok
+    compress
+    copytruncate
+    create 0640 nova nova
+}

@@ -17,12 +17,26 @@ LOG = logging.getLogger(__name__)
 CONF = conf.CONF
 
 
-def run_popen(cmd: list):
-    LOG.debug('Run: %s', ' '.join(cmd))
-    popen = subprocess.Popen(cmd, stdout=sys.stdout)
+def run_popen(cmd: list, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    LOG.debug('>>: %s', ' '.join(cmd))
+    popen = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
     popen.wait()
-    LOG.debug('Return: %s', popen.returncode)
+    LOG.debug('>> [%s]: ', popen.returncode)
+
+    if popen.returncode != 0:
+        # import pdb; pdb.set_trace()
+        LOG.error('>> [stderr]: %s', ''.join([line.decode() for line in popen.stderr.readlines()]))
+    else:
+        LOG.info('>> [stdout]: %s', ''.join(popen.stdout.readlines() or ['']))
     return popen.returncode
+
+
+def execute(cmd, debug_output=True):
+    LOG.debug('>>: %s', ' '.join(cmd))
+    status, output = subprocess.getstatusoutput(' '.join(cmd))
+    LOG.debug('>> [code]: %s [output]: \n%s', status,
+              debug_output and output or '***')
+    return status, output
 
 
 class DockerCmd(object):
@@ -42,7 +56,7 @@ class DockerCmd(object):
         if target:
             cmd.extend(['-t', target])
         cmd.append(path)
-        status = run_popen(cmd)
+        status = run_popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
         if status != 0:
             raise exceptions.DockerBuildFailed(target=target,
                                                error=f'return code {status}')
@@ -100,7 +114,24 @@ class KubectlCmd(object):
         cmd.extend(['-f', file])
         status, output = subprocess.getstatusoutput(' '.join(cmd))
         if status != 0:
-            raise RuntimeError(f'replace {file} failed, {output}')
+            raise RuntimeError(f'delete by file "{file}" failed, stdout:\n{output}')
+
+    @classmethod
+    def create_configmap(cls, name, from_file=None, dry_run=False, output=None):
+        cmd = [cls.cmd, 'create', 'configmap', name]
+        for file in from_file or []:
+            LOG.debug('found file %s', file)
+            file_name = os.path.basename(file)
+            cmd.append(f'--from-file={file_name}={file}')
+        if dry_run:
+            cmd.append('--dry-run=client')
+        if output:
+            cmd.append(f'--output={output}')
+
+        status, output = execute(cmd, debug_output=False)
+        if status != 0:
+            raise RuntimeError(f'create configmap "{name}" failed, stdout:\n{output}')
+        return output
 
 
 def get_hosts_mapping():

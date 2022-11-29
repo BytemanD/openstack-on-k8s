@@ -29,6 +29,7 @@ spec:
           image: ${REGISTRY}${PROJECT}/nova/compute:${VERSION}
           imagePullPolicy: Always
           command: ["python", "/k8stack/init-utils.py", "-d"]
+          # command: ["sleep", "3600"]
           volumeMounts:
             - {mountPath: /etc/hosts, name: etc-hosts }
             - {mountPath: /etc/passwd, name: etc-passwd }
@@ -38,7 +39,9 @@ spec:
             - {mountPath: /etc/libvirt/libvirtd.conf, name: etc-libvirt-libvirtd }
             - {mountPath: /etc/sysconfig/libvirtd, name: etc-sysconfig-libvirtd }
             - {mountPath: /var/lib/nova, name: var-lib-nova }
-            - {mountPath: /data/etc/logrotate.d, name: etc-logrotate }
+            - {mountPath: /etc/logrotate.d, name: etc-logrotate }
+            - {name: k8stack-scripts, mountPath: /k8stack}
+
       containers:
         - name: nova-compute
           securityContext:
@@ -47,7 +50,6 @@ spec:
           command: ["nova-compute"]
           command: ["su", "-s", "/bin/sh", "-c", "nova-compute", "nova"]
           image: ${REGISTRY}${PROJECT}/nova/compute:${VERSION}
-          imagePullPolicy: Always
           volumeMounts:
             - {mountPath: /etc/hosts, name: etc-hosts }
             - {mountPath: /etc/passwd, name: etc-passwd }
@@ -85,4 +87,4 @@ spec:
         - {name: etc-libvirt-libvirtd, hostPath: {path: /etc/libvirt/libvirtd.conf}}
         - {name: etc-sysconfig-libvirtd, hostPath: {path: /etc/sysconfig/libvirtd}}
         - {name: etc-logrotate, hostPath: {path: /etc/logrotate.d/}}
-
+        - {name: k8stack-scripts, configMap: {name: k8stack-scripts}}
