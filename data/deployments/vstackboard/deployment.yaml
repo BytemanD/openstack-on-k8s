@@ -17,7 +17,7 @@ spec:
         vstackboard: 'yes'
       containers:
         - name: vstackboard
-          image:  ${REGISTRY}vstackboard
+          image:  docker.io/fjboy/vstackboard
           imagePullPolicy: Always
           ports:
           - containerPort: 8989

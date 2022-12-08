@@ -124,6 +124,15 @@ def get_hosts_mapping():
     return hosts_mapping
 
 
+# TODO(move this function os easy2use package)
+def copy(src_path, dest_path):
+    if os.path.isfile(src_path):
+        shutil.copy(src_path, dest_path)
+    else:
+        shutil.copytree(src_path,
+                        os.path.join(dest_path, os.path.basename(src_path)))
+
+
 def prepare(component, dest_path):
     components_path = os.path.join(CONF.data_path, 'components')
     resources_path = os.path.join(CONF.data_path, 'resources',
@@ -132,13 +141,13 @@ def prepare(component, dest_path):
     if not os.path.exists(component_path):
         raise RuntimeError(f'component {component} is not exists')
     for src_path in glob.glob(os.path.join(component_path, '*')):
-        shutil.copy(src_path, dest_path)
+        copy(src_path, dest_path)
 
     if not os.path.exists(resources_path):
         LOG.warning('resources path %s is not exists', resources_path)
         return
     for src_path in glob.glob(os.path.join(resources_path, '*')):
-        shutil.copy(src_path, dest_path)
+        copy(src_path, dest_path)
 
 
 def build_image(component, target, no_cache=False, build_args=None):

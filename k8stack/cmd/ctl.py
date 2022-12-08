@@ -41,9 +41,8 @@ class ComponentList(cli.SubCli):
         os.chdir(components_path)
         table = prettytable.PrettyTable(['No.', 'Name'])
 
-        components = sorted([
-            comp for comp in glob.glob(f'**/{CONF.dockerfile}', recursive=True)
-        ])
+        components = sorted(
+            list(glob.glob(f'**/{CONF.dockerfile}', recursive=True)))
         for i, c_path in enumerate(components):
             path_list = c_path.split(os.sep)[:-1]
             table.add_row([str(i+1), os.sep.join(path_list)])
@@ -127,7 +126,7 @@ class Build(cli.SubCli):
 
         if args.push:
             impl.push_to_registries(local_registry, version,
-                                     latest=args.latest)
+                                    latest=args.latest)
 
 
 class Replace(cli.SubCli):

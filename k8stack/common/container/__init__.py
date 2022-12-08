@@ -19,6 +19,5 @@ def init():
     global CONTAINER_CLI
 
     CONTAINER_CLI = CONTAINER_CLI_MAP.get(CONF.container_cli)
-    import pdb; pdb.set_trace()
     if not CONTAINER_CLI:
         raise ValueError(f'Invalid container_clid {CONF.container_cli}')
